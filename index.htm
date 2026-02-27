@@ -1,439 +1,486 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { User, BookOpen, MapPin, Box, Monitor, Activity, Plus, Check, X, RotateCcw } from 'lucide-react';
-
-// --- 資料設定 ---
-const CATEGORIES = [
-  { id: 'people', name: '人物', icon: User, color: 'bg-pink-100 border-pink-400 text-pink-800' },
-  { id: 'subjects', name: '科目', icon: BookOpen, color: 'bg-blue-100 border-blue-400 text-blue-800' },
-  { id: 'places', name: '設施/地方', icon: MapPin, color: 'bg-green-100 border-green-400 text-green-800' },
-  { id: 'items', name: '物品', icon: Box, color: 'bg-yellow-100 border-yellow-400 text-yellow-800' },
-  { id: 'appliances', name: '電器', icon: Monitor, color: 'bg-purple-100 border-purple-400 text-purple-800' },
-  { id: 'activities', name: '活動', icon: Activity, color: 'bg-orange-100 border-orange-400 text-orange-800' }
-];
-
-const INITIAL_WORDS_DATA = [
-  // 人物
-  { text: '職員', category: 'people' }, { text: '校長', category: 'people' }, { text: '副校長', category: 'people' },
-  { text: '訓導主任', category: 'people' }, { text: '班主任', category: 'people' }, { text: '老師', category: 'people' },
-  { text: '工友', category: 'people' }, { text: '同學', category: 'people' }, { text: '風紀', category: 'people' },
-  { text: '值日生', category: 'people' }, { text: '學生', category: 'people' },
-  // 科目
-  { text: '中文', category: 'subjects' }, { text: '英文', category: 'subjects' }, { text: '數學', category: 'subjects' },
-  { text: '人文', category: 'subjects' }, { text: '科學', category: 'subjects' }, { text: '視覺藝術', category: 'subjects' },
-  { text: '普通話', category: 'subjects' }, { text: '宗教', category: 'subjects' }, { text: '音樂', category: 'subjects' },
-  // 設施/地方
-  { text: '課室', category: 'places' }, { text: '走廊', category: 'places' }, { text: '操場', category: 'places' },
-  { text: '禮堂', category: 'places' }, { text: '音樂室', category: 'places' }, { text: '電腦室', category: 'places' },
-  { text: '教員室', category: 'places' }, { text: '校務處', category: 'places' }, { text: '洗手間', category: 'places' },
-  { text: '圖書館', category: 'places' }, { text: '窗門', category: 'places' }, { text: '黑板', category: 'places' },
-  // 物品
-  { text: '粉筆', category: 'items' }, { text: '粉擦', category: 'items' },
-  { text: '飯箱', category: 'items' }, { text: '筆袋', category: 'items' }, { text: '書包', category: 'items' },
-  { text: '課本', category: 'items' }, { text: '活力午餐', category: 'items' }, { text: '水壺', category: 'items' },
-  // 電器
-  { text: '投影機', category: 'appliances' }, { text: '冷氣機', category: 'appliances' }, { text: '電腦', category: 'appliances' },
-  { text: '滑鼠', category: 'appliances' }, { text: '鍵盤', category: 'appliances' }, { text: '風扇', category: 'appliances' },
-  // 活動
-  { text: '看圖書', category: 'activities' }, { text: '做功課', category: 'activities' }, { text: '上課', category: 'activities' },
-  { text: '做手工', category: 'activities' }, { text: '畫畫', category: 'activities' }, { text: '小休', category: 'activities' },
-  { text: '多元智能', category: 'activities' }, { text: '排隊', category: 'activities' }, { text: '默書', category: 'activities' },
-  { text: '測驗', category: 'activities' }, { text: '寫字', category: 'activities' }, { text: '唱歌', category: 'activities' },
-  { text: '考試', category: 'activities' }
-];
-
-// 隨機打亂陣列
-const shuffleArray = (array) => {
-  const newArray = [...array];
-  for (let i = newArray.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
-  }
-  return newArray;
-};
-
-export default function App() {
-  const [wordQueue, setWordQueue] = useState([]);
-  const [activeWords, setActiveWords] = useState([]);
-  const [placedWords, setPlacedWords] = useState({
-    people: [], subjects: [], places: [], items: [], appliances: [], activities: []
-  });
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>我的校園分類遊戲</title>
   
-  const [dragInfo, setDragInfo] = useState(null);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [newWordText, setNewWordText] = useState('');
-  const [newWordCategory, setNewWordCategory] = useState('people');
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
   
-  const [feedback, setFeedback] = useState(null); // { message, type }
-  const [animatingBox, setAnimatingBox] = useState(null);
-  const [errorWordId, setErrorWordId] = useState(null);
+  <!-- FontAwesome for Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-  const containerRef = useRef(null);
-
-  // 初始化遊戲
-  const initGame = () => {
-    const shuffled = shuffleArray(INITIAL_WORDS_DATA.map((w, i) => ({ ...w, id: `word_${i}` })));
-    setWordQueue(shuffled.slice(5));
-    setActiveWords(shuffled.slice(0, 5));
-    setPlacedWords({ people: [], subjects: [], places: [], items: [], appliances: [], activities: [] });
-    setFeedback(null);
-  };
-
-  useEffect(() => {
-    initGame();
-  }, []);
-
-  // 當桌面上的詞語清空時，自動補上 5 個新詞語
-  useEffect(() => {
-    if (activeWords.length === 0 && wordQueue.length > 0) {
-      const nextBatch = wordQueue.slice(0, 5);
-      setActiveWords(nextBatch);
-      setWordQueue(wordQueue.slice(5));
+  <style>
+    @keyframes pop {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
     }
-  }, [activeWords, wordQueue]);
-
-  // --- 拖曳邏輯 (支援觸控與滑鼠) ---
-  const handlePointerDown = (e, word) => {
-    // 忽略右鍵
-    if (e.button === 2) return;
-    e.preventDefault();
-    e.stopPropagation();
-
-    const rect = e.currentTarget.getBoundingClientRect();
-    const offsetX = e.clientX - rect.left;
-    const offsetY = e.clientY - rect.top;
-
-    setDragInfo({
-      word,
-      x: e.clientX,
-      y: e.clientY,
-      offsetX,
-      offsetY,
-      width: rect.width,
-      height: rect.height
-    });
-  };
-
-  const handlePointerMove = (e) => {
-    if (!dragInfo) return;
-    e.preventDefault();
-    setDragInfo(prev => ({ ...prev, x: e.clientX, y: e.clientY }));
-  };
-
-  const handlePointerUp = (e) => {
-    if (!dragInfo) return;
-
-    // 暫時隱藏拖曳中的元素，以便取得底下的目標物
-    const dragElement = document.getElementById('drag-overlay');
-    if (dragElement) dragElement.style.visibility = 'hidden';
-
-    const elementBelow = document.elementFromPoint(e.clientX, e.clientY);
+    .animate-pop { animation: pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
     
-    if (dragElement) dragElement.style.visibility = 'visible';
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-8px); }
+      40%, 80% { transform: translateX(8px); }
+    }
+    .animate-shake { animation: shake 0.4s ease-in-out; }
+    
+    .drag-overlay {
+      position: fixed;
+      pointer-events: none;
+      z-index: 9999;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+      transform: scale(1.1) rotate(-3deg);
+      transition: transform 0.1s;
+    }
+  </style>
+</head>
+<body class="h-[100dvh] bg-[#f0f9ff] font-sans flex flex-col overflow-hidden text-slate-800 overscroll-none">
 
-    const dropZone = elementBelow?.closest('[data-category]');
+  <!-- 頂部標題 -->
+  <header class="bg-white shadow-sm py-4 px-6 flex justify-between items-center z-10 shrink-0 select-none">
+    <h1 class="text-3xl font-bold text-sky-600 flex items-center gap-3">
+      🏫 我的校園分類遊戲
+    </h1>
+    <div class="flex items-center gap-4">
+      <div class="text-lg font-medium text-slate-600 bg-slate-100 px-4 py-2 rounded-full">
+        還有 <span id="queue-count" class="text-sky-600 font-bold text-2xl">0</span> 個詞語
+      </div>
+      <button 
+        onclick="initGame()"
+        class="p-2 rounded-full hover:bg-slate-100 text-slate-500 transition-colors cursor-pointer"
+        title="重新開始"
+      >
+        <i class="fa-solid fa-rotate-right text-xl"></i>
+      </button>
+    </div>
+  </header>
 
-    if (dropZone) {
-      const categoryId = dropZone.getAttribute('data-category');
+  <!-- 提示訊息 -->
+  <div id="feedback-message" class="hidden absolute top-20 left-1/2 -translate-x-1/2 z-50 bg-green-500 text-white px-6 py-3 rounded-full shadow-lg font-bold text-xl flex items-center gap-2 animate-bounce">
+    <i class="fa-solid fa-check text-xl"></i>
+    <span id="feedback-text"></span>
+  </div>
+
+  <!-- 遊戲主要區域 -->
+  <main class="flex-1 flex flex-col p-4 md:p-6 gap-6 overflow-hidden h-full select-none">
+    
+    <!-- 分類放置區 (上半部) -->
+    <div id="categories-container" class="grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 flex-1 overflow-y-auto pb-4">
+      <!-- Categories rendered by JS -->
+    </div>
+
+    <!-- 詞語庫 (下半部) -->
+    <div class="h-48 md:h-56 bg-white rounded-3xl shadow-xl border-4 border-sky-200 p-4 md:p-6 flex flex-col shrink-0 relative">
+      <div class="absolute -top-4 left-1/2 -translate-x-1/2 bg-sky-500 text-white px-6 py-1 rounded-full font-bold shadow-md whitespace-nowrap">
+        詞語庫 (請拖曳到上方的正確分類)
+      </div>
       
-      if (categoryId === dragInfo.word.category) {
-        // 分類正確
-        handleCorrectDrop(dragInfo.word, categoryId);
-      } else {
-        // 分類錯誤
-        handleWrongDrop(dragInfo.word);
+      <div id="word-pool" class="flex-1 flex justify-center items-center gap-4 md:gap-8 flex-wrap">
+        <!-- Active words rendered by JS -->
+      </div>
+
+      <!-- 新增按鈕 -->
+      <button
+        onclick="openAddModal()"
+        class="absolute -right-2 -bottom-2 md:right-4 md:-bottom-6 bg-purple-500 hover:bg-purple-600 text-white p-4 rounded-full shadow-lg transition-transform hover:scale-110 flex items-center justify-center border-4 border-white cursor-pointer"
+        title="老師新增詞語"
+      >
+        <i class="fa-solid fa-plus text-2xl"></i>
+      </button>
+    </div>
+
+  </main>
+
+  <!-- 拖曳時的懸浮元素 -->
+  <div id="drag-overlay" class="hidden drag-overlay bg-yellow-300 text-yellow-900 border-b-8 border-yellow-500 px-6 py-4 md:px-8 md:py-5 rounded-2xl font-black text-2xl md:text-3xl flex items-center justify-center">
+  </div>
+
+  <!-- 新增詞語對話框 (Teacher Tool) -->
+  <div id="add-modal" class="hidden fixed inset-0 bg-slate-900 bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl shadow-2xl p-6 md:p-8 w-full max-w-md animate-pop">
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
+          <i class="fa-solid fa-plus text-purple-500"></i> 加入新詞語
+        </h2>
+        <button 
+          onclick="closeAddModal()"
+          class="p-2 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-500 cursor-pointer"
+        >
+          <i class="fa-solid fa-xmark text-xl"></i>
+        </button>
+      </div>
+      
+      <form id="add-word-form" class="space-y-6">
+        <div>
+          <label class="block text-lg font-bold text-slate-700 mb-2">詞語名稱</label>
+          <input
+            type="text"
+            id="new-word-input"
+            placeholder="例如：圖書管理員"
+            class="w-full text-2xl p-4 border-4 border-slate-200 rounded-2xl focus:border-purple-400 focus:outline-none transition-colors"
+          />
+        </div>
+        
+        <div>
+          <label class="block text-lg font-bold text-slate-700 mb-2">選擇正確的分類</label>
+          <div id="modal-categories" class="grid grid-cols-2 gap-3">
+            <!-- Radio buttons rendered by JS -->
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          id="submit-word-btn"
+          disabled
+          class="w-full bg-purple-500 hover:bg-purple-600 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold text-2xl py-4 rounded-2xl shadow-lg transition-colors mt-4 cursor-pointer"
+        >
+          確認新增
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // --- 資料設定 ---
+    const CATEGORIES = [
+      { id: 'people', name: '人物', icon: 'fa-user', color: 'bg-pink-100 border-pink-400 text-pink-800' },
+      { id: 'subjects', name: '科目', icon: 'fa-book-open', color: 'bg-blue-100 border-blue-400 text-blue-800' },
+      { id: 'places', name: '設施/地方', icon: 'fa-location-dot', color: 'bg-green-100 border-green-400 text-green-800' },
+      { id: 'items', name: '物品', icon: 'fa-box', color: 'bg-yellow-100 border-yellow-400 text-yellow-800' },
+      { id: 'appliances', name: '電器', icon: 'fa-display', color: 'bg-purple-100 border-purple-400 text-purple-800' },
+      { id: 'activities', name: '活動', icon: 'fa-person-running', color: 'bg-orange-100 border-orange-400 text-orange-800' }
+    ];
+
+    const INITIAL_WORDS_DATA = [
+      // 人物
+      { text: '職員', category: 'people' }, { text: '校長', category: 'people' }, { text: '副校長', category: 'people' },
+      { text: '訓導主任', category: 'people' }, { text: '班主任', category: 'people' }, { text: '老師', category: 'people' },
+      { text: '工友', category: 'people' }, { text: '同學', category: 'people' }, { text: '風紀', category: 'people' },
+      { text: '值日生', category: 'people' }, { text: '學生', category: 'people' },
+      // 科目
+      { text: '中文', category: 'subjects' }, { text: '英文', category: 'subjects' }, { text: '數學', category: 'subjects' },
+      { text: '人文', category: 'subjects' }, { text: '科學', category: 'subjects' }, { text: '視覺藝術', category: 'subjects' },
+      { text: '普通話', category: 'subjects' }, { text: '宗教', category: 'subjects' }, { text: '音樂', category: 'subjects' },
+      // 設施/地方
+      { text: '課室', category: 'places' }, { text: '走廊', category: 'places' }, { text: '操場', category: 'places' },
+      { text: '禮堂', category: 'places' }, { text: '音樂室', category: 'places' }, { text: '電腦室', category: 'places' },
+      { text: '教員室', category: 'places' }, { text: '校務處', category: 'places' }, { text: '洗手間', category: 'places' },
+      { text: '圖書館', category: 'places' }, { text: '窗門', category: 'places' }, { text: '黑板', category: 'places' },
+      // 物品
+      { text: '粉筆', category: 'items' }, { text: '粉擦', category: 'items' },
+      { text: '飯箱', category: 'items' }, { text: '筆袋', category: 'items' }, { text: '書包', category: 'items' },
+      { text: '課本', category: 'items' }, { text: '活力午餐', category: 'items' }, { text: '水壺', category: 'items' },
+      // 電器
+      { text: '投影機', category: 'appliances' }, { text: '冷氣機', category: 'appliances' }, { text: '電腦', category: 'appliances' },
+      { text: '滑鼠', category: 'appliances' }, { text: '鍵盤', category: 'appliances' }, { text: '風扇', category: 'appliances' },
+      // 活動
+      { text: '看圖書', category: 'activities' }, { text: '做功課', category: 'activities' }, { text: '上課', category: 'activities' },
+      { text: '做手工', category: 'activities' }, { text: '畫畫', category: 'activities' }, { text: '小休', category: 'activities' },
+      { text: '多元智能', category: 'activities' }, { text: '排隊', category: 'activities' }, { text: '默書', category: 'activities' },
+      { text: '測驗', category: 'activities' }, { text: '寫字', category: 'activities' }, { text: '唱歌', category: 'activities' },
+      { text: '考試', category: 'activities' }
+    ];
+
+    // --- 狀態變數 ---
+    let wordQueue = [];
+    let activeWords = [];
+    let placedWords = { people: [], subjects: [], places: [], items: [], appliances: [], activities: [] };
+    
+    let dragInfo = null;
+    let newWordCategory = 'people';
+
+    // 隨機打亂陣列
+    const shuffleArray = (array) => {
+      const newArray = [...array];
+      for (let i = newArray.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+      }
+      return newArray;
+    };
+
+    // --- 初始化遊戲 ---
+    function initGame() {
+      const shuffled = shuffleArray(INITIAL_WORDS_DATA.map((w, i) => ({ ...w, id: `word_${i}` })));
+      wordQueue = shuffled.slice(5);
+      activeWords = shuffled.slice(0, 5);
+      placedWords = { people: [], subjects: [], places: [], items: [], appliances: [], activities: [] };
+      
+      renderAll();
+    }
+
+    // 當桌面上的詞語清空時，自動補上 5 個新詞語
+    function checkAndReplenishWords() {
+      if (activeWords.length === 0 && wordQueue.length > 0) {
+        activeWords = wordQueue.slice(0, 5);
+        wordQueue = wordQueue.slice(5);
+        renderAll();
       }
     }
 
-    setDragInfo(null);
-  };
-
-  const handleCorrectDrop = (word, categoryId) => {
-    // 從現用詞語中移除
-    setActiveWords(prev => prev.filter(w => w.id !== word.id));
-    // 加入對應分類
-    setPlacedWords(prev => ({
-      ...prev,
-      [categoryId]: [...prev[categoryId], word]
-    }));
-    
-    // 視覺回饋
-    setAnimatingBox(categoryId);
-    setTimeout(() => setAnimatingBox(null), 500);
-  };
-
-  const handleWrongDrop = (word) => {
-    setErrorWordId(word.id);
-    setTimeout(() => setErrorWordId(null), 500);
-  };
-
-  // --- 新增詞語邏輯 ---
-  const handleAddNewWord = (e) => {
-    e.preventDefault();
-    if (!newWordText.trim()) return;
-
-    const newWord = {
-      id: `new_${Date.now()}`,
-      text: newWordText.trim(),
-      category: newWordCategory
-    };
-
-    if (activeWords.length < 5 && wordQueue.length === 0) {
-      setActiveWords(prev => [...prev, newWord]);
-    } else {
-      setWordQueue(prev => [...prev, newWord]);
+    // --- 渲染畫面 ---
+    function renderAll() {
+      renderHeader();
+      renderCategories();
+      renderWordPool();
+      renderModalCategories();
     }
 
-    setNewWordText('');
-    setShowAddModal(false);
-    
-    setFeedback({ message: `已成功新增詞語：「${newWord.text}」`, type: 'success' });
-    setTimeout(() => setFeedback(null), 3000);
-  };
+    function renderHeader() {
+      document.getElementById('queue-count').textContent = wordQueue.length;
+    }
 
-  const isGameComplete = activeWords.length === 0 && wordQueue.length === 0;
+    function renderCategories() {
+      const container = document.getElementById('categories-container');
+      container.innerHTML = '';
 
-  return (
-    <div 
-      ref={containerRef}
-      className="min-h-screen bg-[#f0f9ff] font-sans flex flex-col touch-none select-none overflow-hidden"
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerLeave={handlePointerUp}
-    >
-      <style dangerouslySetInnerHTML={{__html: `
-        @keyframes pop {
-          0% { transform: scale(1); }
-          50% { transform: scale(1.05); }
-          100% { transform: scale(1); }
-        }
-        .animate-pop { animation: pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-        
-        @keyframes shake {
-          0%, 100% { transform: translateX(0); }
-          20%, 60% { transform: translateX(-8px); }
-          40%, 80% { transform: translateX(8px); }
-        }
-        .animate-shake { animation: shake 0.4s ease-in-out; }
-        
-        .drag-overlay {
-          position: fixed;
-          pointer-events: none;
-          z-index: 9999;
-          box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-          transform: scale(1.1) rotate(-3deg);
-          transition: transform 0.1s;
-        }
-      `}} />
-
-      {/* 頂部標題 */}
-      <header className="bg-white shadow-sm py-4 px-6 flex justify-between items-center z-10 shrink-0">
-        <h1 className="text-3xl font-bold text-sky-600 flex items-center gap-3">
-          🏫 我的校園分類遊戲
-        </h1>
-        <div className="flex items-center gap-4">
-          <div className="text-lg font-medium text-slate-600 bg-slate-100 px-4 py-2 rounded-full">
-            還有 <span className="text-sky-600 font-bold text-2xl">{wordQueue.length}</span> 個詞語
+      CATEGORIES.forEach(cat => {
+        const wordsHTML = placedWords[cat.id].map(word => `
+          <div class="bg-white px-3 py-2 md:px-4 md:py-2 rounded-xl shadow-sm text-lg md:text-xl font-bold text-slate-700 border-2 border-opacity-20 border-current">
+            ${word.text}
           </div>
-          <button 
-            onClick={initGame}
-            className="p-2 rounded-full hover:bg-slate-100 text-slate-500 transition-colors"
-            title="重新開始"
-          >
-            <RotateCcw size={24} />
-          </button>
-        </div>
-      </header>
+        `).join('');
 
-      {/* 提示訊息 */}
-      {feedback && (
-        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 bg-green-500 text-white px-6 py-3 rounded-full shadow-lg font-bold text-xl flex items-center gap-2 animate-bounce">
-          <Check size={24} />
-          {feedback.message}
-        </div>
-      )}
-
-      {/* 遊戲主要區域 */}
-      <main className="flex-1 flex flex-col p-4 md:p-6 gap-6 overflow-hidden h-full">
-        
-        {/* 分類放置區 (上半部) */}
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 flex-1 overflow-y-auto pb-4">
-          {CATEGORIES.map(cat => {
-            const Icon = cat.icon;
-            const isAnimating = animatingBox === cat.id;
-            
-            return (
-              <div 
-                key={cat.id} 
-                data-category={cat.id}
-                className={`
-                  border-4 rounded-3xl p-4 flex flex-col transition-all duration-300
-                  ${cat.color} bg-opacity-40
-                  ${isAnimating ? 'animate-pop border-green-500 ring-4 ring-green-300' : ''}
-                  ${dragInfo ? 'border-dashed' : 'border-solid'}
-                `}
-              >
-                <div className="flex items-center gap-3 mb-4 border-b-2 border-current pb-2 opacity-80">
-                  <Icon size={28} className="drop-shadow-sm" />
-                  <h2 className="text-2xl md:text-3xl font-black tracking-wide">{cat.name}</h2>
-                  <span className="ml-auto bg-white bg-opacity-50 px-3 py-1 rounded-full text-lg font-bold">
-                    {placedWords[cat.id].length}
-                  </span>
-                </div>
-                
-                <div className="flex flex-wrap gap-2 md:gap-3 content-start flex-1 overflow-y-auto">
-                  {placedWords[cat.id].map(word => (
-                    <div 
-                      key={word.id} 
-                      className="bg-white px-3 py-2 md:px-4 md:py-2 rounded-xl shadow-sm text-lg md:text-xl font-bold text-slate-700 border-2 border-opacity-20 border-current"
-                    >
-                      {word.text}
-                    </div>
-                  ))}
-                  {placedWords[cat.id].length === 0 && (
-                    <div className="w-full text-center text-current opacity-40 font-medium text-lg mt-4 border-2 border-dashed border-current rounded-xl py-4">
-                      請把詞語拉到這裡
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* 詞語庫 (下半部) */}
-        <div className="h-48 md:h-56 bg-white rounded-3xl shadow-xl border-4 border-sky-200 p-4 md:p-6 flex flex-col shrink-0 relative">
-          <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-sky-500 text-white px-6 py-1 rounded-full font-bold shadow-md">
-            詞語庫 (請拖曳到上方的正確分類)
+        const emptyHTML = placedWords[cat.id].length === 0 ? `
+          <div class="w-full text-center text-current opacity-40 font-medium text-lg mt-4 border-2 border-dashed border-current rounded-xl py-4">
+            請把詞語拉到這裡
           </div>
-          
-          <div className="flex-1 flex justify-center items-center gap-4 md:gap-8 flex-wrap">
-            {isGameComplete ? (
-              <div className="text-3xl md:text-4xl font-black text-green-500 animate-bounce flex items-center gap-4">
-                🎉 恭喜你！完成所有分類了！ 🎉
-              </div>
-            ) : (
-              activeWords.map(word => {
-                const isDragging = dragInfo?.word.id === word.id;
-                const isError = errorWordId === word.id;
-                
-                return (
-                  <div
-                    key={word.id}
-                    onPointerDown={(e) => handlePointerDown(e, word)}
-                    className={`
-                      px-6 py-4 md:px-8 md:py-5 rounded-2xl font-black text-2xl md:text-3xl
-                      bg-yellow-300 text-yellow-900 border-b-8 border-yellow-500
-                      cursor-grab active:cursor-grabbing hover:bg-yellow-200
-                      transition-all
-                      ${isDragging ? 'opacity-0' : 'opacity-100 shadow-lg hover:-translate-y-1 hover:shadow-xl'}
-                      ${isError ? 'animate-shake bg-red-400 border-red-600 text-white' : ''}
-                    `}
-                    style={{ touchAction: 'none' }} // 重要：防止在元件上觸摸時發生捲動
-                  >
-                    {word.text}
-                  </div>
-                );
-              })
-            )}
-          </div>
+        ` : '';
 
-          {/* 新增按鈕 */}
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="absolute -right-2 -bottom-2 md:right-4 md:-bottom-6 bg-purple-500 hover:bg-purple-600 text-white p-4 rounded-full shadow-lg transition-transform hover:scale-110 flex items-center justify-center border-4 border-white"
-            title="老師新增詞語"
-          >
-            <Plus size={32} strokeWidth={3} />
-          </button>
-        </div>
-
-      </main>
-
-      {/* 拖曳時的懸浮元素 */}
-      {dragInfo && (
-        <div
-          id="drag-overlay"
-          className="drag-overlay bg-yellow-300 text-yellow-900 border-b-8 border-yellow-500 px-6 py-4 md:px-8 md:py-5 rounded-2xl font-black text-2xl md:text-3xl flex items-center justify-center"
-          style={{
-            left: dragInfo.x - dragInfo.offsetX,
-            top: dragInfo.y - dragInfo.offsetY,
-            width: dragInfo.width,
-            height: dragInfo.height
-          }}
-        >
-          {dragInfo.word.text}
-        </div>
-      )}
-
-      {/* 新增詞語對話框 (Teacher Tool) */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-slate-900 bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl p-6 md:p-8 w-full max-w-md animate-pop">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                <Plus className="text-purple-500" /> 加入新詞語
-              </h2>
-              <button 
-                onClick={() => setShowAddModal(false)}
-                className="p-2 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-500"
-              >
-                <X size={24} />
-              </button>
+        const catHTML = `
+          <div id="cat-${cat.id}" data-category="${cat.id}" class="border-4 border-solid rounded-3xl p-4 flex flex-col transition-all duration-300 ${cat.color} bg-opacity-40">
+            <div class="flex items-center gap-3 mb-4 border-b-2 border-current pb-2 opacity-80">
+              <i class="fa-solid ${cat.icon} text-2xl drop-shadow-sm"></i>
+              <h2 class="text-2xl md:text-3xl font-black tracking-wide">${cat.name}</h2>
+              <span class="ml-auto bg-white bg-opacity-50 px-3 py-1 rounded-full text-lg font-bold">
+                ${placedWords[cat.id].length}
+              </span>
             </div>
-            
-            <form onSubmit={handleAddNewWord} className="space-y-6">
-              <div>
-                <label className="block text-lg font-bold text-slate-700 mb-2">詞語名稱</label>
-                <input
-                  type="text"
-                  value={newWordText}
-                  onChange={(e) => setNewWordText(e.target.value)}
-                  placeholder="例如：圖書管理員"
-                  className="w-full text-2xl p-4 border-4 border-slate-200 rounded-2xl focus:border-purple-400 focus:outline-none transition-colors"
-                  autoFocus
-                />
-              </div>
-              
-              <div>
-                <label className="block text-lg font-bold text-slate-700 mb-2">選擇正確的分類</label>
-                <div className="grid grid-cols-2 gap-3">
-                  {CATEGORIES.map(cat => (
-                    <label 
-                      key={cat.id}
-                      className={`
-                        flex items-center p-3 rounded-xl border-4 cursor-pointer transition-all
-                        ${newWordCategory === cat.id ? 'border-purple-500 bg-purple-50' : 'border-slate-100 bg-slate-50 hover:bg-slate-100'}
-                      `}
-                    >
-                      <input
-                        type="radio"
-                        name="category"
-                        value={cat.id}
-                        checked={newWordCategory === cat.id}
-                        onChange={() => setNewWordCategory(cat.id)}
-                        className="hidden"
-                      />
-                      <cat.icon size={20} className={`mr-2 ${newWordCategory === cat.id ? 'text-purple-600' : 'text-slate-500'}`} />
-                      <span className={`font-bold text-lg ${newWordCategory === cat.id ? 'text-purple-700' : 'text-slate-600'}`}>
-                        {cat.name}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={!newWordText.trim()}
-                className="w-full bg-purple-500 hover:bg-purple-600 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold text-2xl py-4 rounded-2xl shadow-lg transition-colors mt-4"
-              >
-                確認新增
-              </button>
-            </form>
+            <div class="flex flex-wrap gap-2 md:gap-3 content-start flex-1 overflow-y-auto">
+              ${wordsHTML}
+              ${emptyHTML}
+            </div>
           </div>
-        </div>
-      )}
+        `;
+        container.insertAdjacentHTML('beforeend', catHTML);
+      });
+    }
 
-    </div>
-  );
-}
+    function renderWordPool() {
+      const container = document.getElementById('word-pool');
+      container.innerHTML = '';
+
+      const isGameComplete = activeWords.length === 0 && wordQueue.length === 0;
+
+      if (isGameComplete) {
+        container.innerHTML = `
+          <div class="text-3xl md:text-4xl font-black text-green-500 animate-bounce flex items-center gap-4">
+            🎉 恭喜你！完成所有分類了！ 🎉
+          </div>
+        `;
+        return;
+      }
+
+      activeWords.forEach(word => {
+        const wordEl = document.createElement('div');
+        wordEl.dataset.id = word.id;
+        wordEl.className = 'draggable-word touch-none px-6 py-4 md:px-8 md:py-5 rounded-2xl font-black text-2xl md:text-3xl bg-yellow-300 text-yellow-900 border-b-8 border-yellow-500 cursor-grab active:cursor-grabbing hover:bg-yellow-200 transition-all shadow-lg hover:-translate-y-1 hover:shadow-xl opacity-100';
+        wordEl.textContent = word.text;
+        container.appendChild(wordEl);
+      });
+    }
+
+    // --- 拖曳邏輯 ---
+    document.addEventListener('pointerdown', (e) => {
+      const target = e.target.closest('.draggable-word');
+      if (!target || e.button === 2) return; // Ignore right clicks
+      
+      e.preventDefault();
+
+      const wordId = target.dataset.id;
+      const word = activeWords.find(w => w.id === wordId);
+      if (!word) return;
+
+      const rect = target.getBoundingClientRect();
+      dragInfo = {
+        word,
+        sourceEl: target,
+        offsetX: e.clientX - rect.left,
+        offsetY: e.clientY - rect.top,
+        width: rect.width,
+        height: rect.height
+      };
+
+      // Set initial position
+      updateDragOverlayPosition(e.clientX, e.clientY);
+      
+      const overlay = document.getElementById('drag-overlay');
+      overlay.textContent = word.text;
+      overlay.style.width = `${dragInfo.width}px`;
+      overlay.style.height = `${dragInfo.height}px`;
+      overlay.classList.remove('hidden');
+
+      // Add dashed border to categories
+      document.querySelectorAll('[data-category]').forEach(el => {
+        el.classList.remove('border-solid');
+        el.classList.add('border-dashed');
+      });
+
+      target.classList.replace('opacity-100', 'opacity-0');
+    });
+
+    document.addEventListener('pointermove', (e) => {
+      if (!dragInfo) return;
+      e.preventDefault();
+      updateDragOverlayPosition(e.clientX, e.clientY);
+    });
+
+    document.addEventListener('pointerup', (e) => {
+      if (!dragInfo) return;
+
+      const overlay = document.getElementById('drag-overlay');
+      overlay.style.visibility = 'hidden'; // Hide to find element below
+
+      const elementBelow = document.elementFromPoint(e.clientX, e.clientY);
+      const dropZone = elementBelow ? elementBelow.closest('[data-category]') : null;
+
+      overlay.style.visibility = 'visible';
+      overlay.classList.add('hidden'); // Hide completely now
+      
+      // Remove dashed border
+      document.querySelectorAll('[data-category]').forEach(el => {
+        el.classList.remove('border-dashed');
+        el.classList.add('border-solid');
+      });
+
+      if (dropZone) {
+        const categoryId = dropZone.getAttribute('data-category');
+        if (categoryId === dragInfo.word.category) {
+          handleCorrectDrop(dragInfo.word, categoryId);
+        } else {
+          handleWrongDrop(dragInfo.word);
+        }
+      } else {
+        dragInfo.sourceEl.classList.replace('opacity-0', 'opacity-100');
+      }
+
+      dragInfo = null;
+    });
+
+    function updateDragOverlayPosition(x, y) {
+      const overlay = document.getElementById('drag-overlay');
+      overlay.style.left = `${x - dragInfo.offsetX}px`;
+      overlay.style.top = `${y - dragInfo.offsetY}px`;
+    }
+
+    function handleCorrectDrop(word, categoryId) {
+      activeWords = activeWords.filter(w => w.id !== word.id);
+      placedWords[categoryId].push(word);
+      
+      renderAll();
+      checkAndReplenishWords();
+
+      // Visual feedback
+      const catEl = document.getElementById(`cat-${categoryId}`);
+      if (catEl) {
+        catEl.classList.add('animate-pop', 'border-green-500', 'ring-4', 'ring-green-300');
+        setTimeout(() => {
+          catEl.classList.remove('animate-pop', 'border-green-500', 'ring-4', 'ring-green-300');
+        }, 500);
+      }
+    }
+
+    function handleWrongDrop(word) {
+      dragInfo.sourceEl.classList.replace('opacity-0', 'opacity-100');
+      dragInfo.sourceEl.classList.add('animate-shake', 'bg-red-400', 'border-red-600', 'text-white');
+      dragInfo.sourceEl.classList.remove('bg-yellow-300', 'border-yellow-500', 'text-yellow-900');
+      
+      setTimeout(() => {
+        if (dragInfo && dragInfo.sourceEl) return; // Guard if dragged again quickly
+        const el = document.querySelector(`[data-id="${word.id}"]`);
+        if (el) {
+          el.classList.remove('animate-shake', 'bg-red-400', 'border-red-600', 'text-white');
+          el.classList.add('bg-yellow-300', 'border-yellow-500', 'text-yellow-900');
+        }
+      }, 500);
+    }
+
+    // --- 新增詞語邏輯 (Teacher Tool) ---
+    const inputEl = document.getElementById('new-word-input');
+    const submitBtn = document.getElementById('submit-word-btn');
+
+    inputEl.addEventListener('input', (e) => {
+      submitBtn.disabled = !e.target.value.trim();
+    });
+
+    function openAddModal() {
+      document.getElementById('add-modal').classList.remove('hidden');
+      inputEl.value = '';
+      submitBtn.disabled = true;
+      newWordCategory = 'people';
+      renderModalCategories();
+      setTimeout(() => inputEl.focus(), 100);
+    }
+
+    function closeAddModal() {
+      document.getElementById('add-modal').classList.add('hidden');
+    }
+
+    function renderModalCategories() {
+      const container = document.getElementById('modal-categories');
+      container.innerHTML = CATEGORIES.map(cat => {
+        const isSelected = newWordCategory === cat.id;
+        return `
+          <label class="flex items-center p-3 rounded-xl border-4 cursor-pointer transition-all ${isSelected ? 'border-purple-500 bg-purple-50' : 'border-slate-100 bg-slate-50 hover:bg-slate-100'}" onclick="selectCategory('${cat.id}')">
+            <i class="fa-solid ${cat.icon} text-lg mr-2 ${isSelected ? 'text-purple-600' : 'text-slate-500'}"></i>
+            <span class="font-bold text-lg ${isSelected ? 'text-purple-700' : 'text-slate-600'}">${cat.name}</span>
+          </label>
+        `;
+      }).join('');
+    }
+
+    function selectCategory(id) {
+      newWordCategory = id;
+      renderModalCategories();
+    }
+
+    document.getElementById('add-word-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const text = inputEl.value.trim();
+      if (!text) return;
+
+      const newWord = {
+        id: `new_${Date.now()}`,
+        text: text,
+        category: newWordCategory
+      };
+
+      if (activeWords.length < 5 && wordQueue.length === 0) {
+        activeWords.push(newWord);
+      } else {
+        wordQueue.push(newWord);
+      }
+
+      closeAddModal();
+      renderAll();
+      showFeedback(`已成功新增詞語：「${text}」`);
+    });
+
+    function showFeedback(message) {
+      const fbEl = document.getElementById('feedback-message');
+      document.getElementById('feedback-text').textContent = message;
+      fbEl.classList.remove('hidden');
+      
+      setTimeout(() => {
+        fbEl.classList.add('hidden');
+      }, 3000);
+    }
+
+    // --- 啟動遊戲 ---
+    document.addEventListener('DOMContentLoaded', initGame);
+
+  </script>
+</body>
+</html>
